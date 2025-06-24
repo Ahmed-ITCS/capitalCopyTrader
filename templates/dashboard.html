@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trade Mirror Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+        h1 { margin-bottom: 10px; }
+        .btn { padding: 10px 20px; font-size: 16px; border: none; border-radius: 5px; margin-right: 10px; cursor: pointer; }
+        .start { background-color: #4CAF50; color: white; }
+        .stop { background-color: #f44336; color: white; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #333; color: white; }
+        .status { margin: 20px 0; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>📊 Trade Mirror Dashboard</h1>
+
+    <form method="post" action="/start" style="display: inline;">
+        <button class="btn start">▶ Start</button>
+    </form>
+    <form method="post" action="/stop" style="display: inline;">
+        <button class="btn stop">⏹ Stop</button>
+    </form>
+
+    <div class="status">🔁 Bot Status: <span id="bot-status">Loading...</span></div>
+
+    <table id="trade-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Epic</th>
+                <th>Direction</th>
+                <th>Size</th>
+                <th>SL</th>
+                <th>TP</th>
+                <th>Order ID</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        async function loadTrades() {
+            const res = await fetch('/data');
+            const data = await res.json();
+            document.getElementById('bot-status').innerText = data.status;
+
+            const tbody = document.querySelector('#trade-table tbody');
+            tbody.innerHTML = '';
+
+            data.trades.forEach(row => {
+                const tr = document.createElement('tr');
+                row.forEach(cell => {
+                    const td = document.createElement('td');
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        setInterval(loadTrades, 5000);
+        loadTrades();
+    </script>
+</body>
+</html>
