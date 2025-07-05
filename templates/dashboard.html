@@ -1,63 +1,96 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trade Mirror Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
-        h1 { margin-bottom: 10px; }
-        .btn { padding: 10px 20px; font-size: 16px; border: none; border-radius: 5px; margin-right: 10px; cursor: pointer; }
-        .start { background-color: #4CAF50; color: white; }
-        .stop { background-color: #f44336; color: white; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #333; color: white; }
-        .status { margin: 20px 0; font-size: 18px; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .hover-scale { transition: transform 0.2s; }
+        .hover-scale:hover { transform: scale(1.05); }
+        .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+        .status-running { background-color: #22c55e; }
+        .status-stopped { background-color: #ef4444; }
+        .status-loading { background-color: #eab308; }
+        .table-row { transition: background-color 0.2s; }
+        .table-row:hover { background-color: #f1f5f9; }
     </style>
 </head>
-<body>
-    <h1>📊 Trade Mirror Dashboard</h1>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6 font-sans">
+    <div class="w-full max-w-7xl">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+            <span class="mr-2">📊</span> Trade Mirror Dashboard
+        </h1>
 
-    <form method="post" action="/start" style="display: inline;">
-        <button class="btn start">▶ Start</button>
-    </form>
-    <form method="post" action="/stop" style="display: inline;">
-        <button class="btn stop">⏹ Stop</button>
-    </form>
+        <div class="flex space-x-4 mb-6">
+            <button form="start-form" class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-md hover:bg-green-600 hover-scale transition-colors">
+                ▶ Start
+            </button>
+            <button form="stop-form" class="bg-red-500 text-white px-6 py-3 rounded-lg shadow-md hover:bg-red-600 hover-scale transition-colors">
+                ⏹ Stop
+            </button>
+        </div>
 
-    <div class="status">🔁 Bot Status: <span id="bot-status">Loading...</span></div>
+        <div class="status mb-6 text-lg font-semibold text-gray-700 flex items-center">
+            <span id="status-dot" class="status-dot status-loading"></span>
+            Bot Status: <span id="bot-status" class="ml-2">Loading...</span>
+        </div>
 
-    <table id="trade-table">
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Source</th>
-                <th>Status</th>
-                <th>Epic</th>
-                <th>Direction</th>
-                <th>Size</th>
-                <th>SL</th>
-                <th>TP</th>
-                <th>Order ID</th>
-                <th>Message</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <table id="trade-table" class="w-full">
+                <thead class="bg-gray-800 text-white">
+                    <tr>
+                        <th class="py-3 px-4 text-left">Time</th>
+                        <th class="py-3 px-4 text-left">Source</th>
+                        <th class="py-3 px-4 text-left">Status</th>
+                        <th class="py-3 px-4 text-left">Epic</th>
+                        <th class="py-3 px-4 text-left">Direction</th>
+                        <th class="py-3 px-4 text-left">Size</th>
+                        <th class="py-3 px-4 text-left">SL</th>
+                        <th class="py-3 px-4 text-left">TP</th>
+                        <th class="py-3 px-4 text-left">Order ID</th>
+                        <th class="py-3 px-4 text-left">Message</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-700"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Hidden forms for submission -->
+    <form id="start-form" method="post" action="/start" class="hidden"></form>
+    <form id="stop-form" method="post" action="/stop" class="hidden"></form>
 
     <script>
         async function loadTrades() {
             const res = await fetch('/data');
             const data = await res.json();
-            document.getElementById('bot-status').innerText = data.status;
+            const statusSpan = document.getElementById('bot-status');
+            const statusDot = document.getElementById('status-dot');
+            statusSpan.innerText = data.status;
+
+            // Update status dot color
+            statusDot.classList.remove('status-running', 'status-stopped', 'status-loading');
+            if (data.status.toLowerCase() === 'running') {
+                statusDot.classList.add('status-running');
+            } else if (data.status.toLowerCase() === 'stopped') {
+                statusDot.classList.add('status-stopped');
+            } else {
+                statusDot.classList.add('status-loading');
+            }
 
             const tbody = document.querySelector('#trade-table tbody');
             tbody.innerHTML = '';
 
             data.trades.forEach(row => {
                 const tr = document.createElement('tr');
+                tr.classList.add('table-row', 'fade-in');
                 row.forEach(cell => {
                     const td = document.createElement('td');
                     td.textContent = cell;
+                    td.classList.add('py-3', 'px-4', 'border-b', 'border-gray-200');
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);

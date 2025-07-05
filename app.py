@@ -18,10 +18,10 @@ BROTHER_CREDENTIALS = {
 }
 
 YOUR_CREDENTIALS = {
-    "api_key": "P8NeJSsUXWni16AI",
-    "username": "ahmedkhawar.80@gmail.com",
+    "api_key": "k2j6sIymvdnjy4Uf",
+    "username": "ahmedkhawarbs@gmail.com",
     "password": "zatoonzatoonA1!",
-    "app_id": "myapp1"
+    "app_id": "myapp"
 }
 
 POLL_INTERVAL = 1
