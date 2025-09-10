@@ -68,9 +68,12 @@ def start_session(username, password, api_key, app_id):
             "https://demo-api-capital.backend-capital.com/api/v1/accounts",
             headers={"X-CAP-API-KEY": api_key, "CST": cst, "X-SECURITY-TOKEN": x_sec}
         )
-        acc_id = acc_resp.json()["accounts"][0]["accountId"]
-        return {"CST": cst, "X_SECURITY_TOKEN": x_sec, "ACCOUNT_ID": acc_id, "API_KEY": api_key}
-    raise Exception("Session failed: " + resp.text)
+        if acc_resp.status_code == 200:
+            acc_id = acc_resp.json()["accounts"][0]["accountId"]
+            return {"CST": cst, "X_SECURITY_TOKEN": x_sec, "ACCOUNT_ID": acc_id, "API_KEY": api_key}
+        else:
+            raise Exception(f"Account fetch failed: {acc_resp.text}")
+    raise Exception(f"Session failed: {resp.text}")
 
 def get_open_positions(session):
     headers = {
@@ -79,7 +82,11 @@ def get_open_positions(session):
         "X-SECURITY-TOKEN": session["X_SECURITY_TOKEN"]
     }
     resp = requests.get("https://demo-api-capital.backend-capital.com/api/v1/positions", headers=headers)
-    return resp.json().get("positions", []) if resp.status_code == 200 else []
+    if resp.status_code == 200:
+        return resp.json().get("positions", [])
+    else:
+        log_trade("SYSTEM", "⚠️", "", "", 0, 0, 0, "", f"Failed to fetch positions: {resp.text}")
+        return []
 
 def place_market_order(session, epic, direction, size, sl, tp):
     headers = {
@@ -96,12 +103,14 @@ def place_market_order(session, epic, direction, size, sl, tp):
         "timeInForce": "FILL_OR_KILL",
         "accountId": session["ACCOUNT_ID"]
     }
-    if sl:
+    if sl is not None and sl > 0:
         payload["stopLevel"] = sl
-    if tp:
+    if tp is not None and tp > 0:
         payload["limitLevel"] = tp
 
+    print(f"Order payload: {payload}")  # Debug: Log payload
     resp = requests.post("https://demo-api-capital.backend-capital.com/api/v1/positions", headers=headers, json=payload)
+    print(f"API response: {resp.status_code} - {resp.text}")  # Debug: Log response
 
     if resp.status_code == 200:
         data = resp.json()
@@ -122,28 +131,32 @@ def mirror_trades():
         return
 
     while not stop_flag:
-        for p in get_open_positions(bro_sess):
+        positions = get_open_positions(bro_sess)
+        print(f"Brother's positions: {positions}")  # Debug: Log raw positions
+        for p in positions:
             pos = p.get('position', {})
             market = p.get('market', {})
             if not pos or not market:
+                log_trade("SYSTEM", "⚠️", "", "", 0, 0, 0, "", "Invalid position or market data")
                 continue
             try:
                 epic = market['epic']
                 direction = pos['direction']
                 size = pos['size']
-                sl = pos.get('stopLevel', 0) or 0
-                tp = pos.get('limitLevel', 0) or 0
-                key = (epic, direction, size, sl, tp)
+                sl = pos.get('stopLevel')  # Keep None if not present
+                tp = pos.get('limitLevel')  # Keep None if not present
+                print(f"Extracted: epic={epic}, direction={direction}, size={size}, sl={sl}, tp={tp}")  # Debug: Log extracted values
+                key = (epic, direction, size, sl if sl is not None else 0, tp if tp is not None else 0)
                 if key not in seen_positions:
                     seen_positions.add(key)
-                    log_trade("NOUMAN", "📈", epic, direction, size, sl, tp)
+                    log_trade("NOUMAN", "📈", epic, direction, size, sl if sl is not None else 0, tp if tp is not None else 0)
                     success, result = place_market_order(you_sess, epic, direction, size, sl, tp)
                     if success:
-                        log_trade("YOU", "✅", epic, direction, size, sl, tp, result)
+                        log_trade("YOU", "✅", epic, direction, size, sl if sl is not None else 0, tp if tp is not None else 0, result)
                     else:
-                        log_trade("YOU", "❌", epic, direction, size, sl, tp, "", result)
+                        log_trade("YOU", "❌", epic, direction, size, sl if sl is not None else 0, tp if tp is not None else 0, "", result)
             except Exception as e:
-                log_trade("YOU", "⚠️", epic, direction, size, 0, 0, "", str(e))
+                log_trade("YOU", "⚠️", epic, direction, size, sl if sl is not None else 0, tp if tp is not None else 0, "", str(e))
         time.sleep(POLL_INTERVAL)
     bot_status = "Stopped"
 
